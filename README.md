@@ -6,4 +6,4 @@
 delete掉单个节点还没有想到很好的思路。
 预计还需一天时间...
 
-reference：算法（robert sedgewick）
+reference：算法（robert sedgewick）page 273
