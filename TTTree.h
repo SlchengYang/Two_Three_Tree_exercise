@@ -1,5 +1,6 @@
 #pragma once
 #include<iostream>
+#include<queue>
 using namespace std;
 
 template<typename T>
@@ -10,6 +11,8 @@ struct Node
 	Node<T>* p;
 	Node<T>* le;
 	Node<T>* mi;
+	Node<T>* ml;
+	Node<T>* mr;
 	Node<T>* ri;
 	Node(bool t, T k1, T k2=0, Node<T>* p_=nullptr, Node<T>* le_ = nullptr, Node<T>* mi_ = nullptr, Node<T>* ri_ = nullptr) :
 		type(t), p(p_), le(le_), mi(mi_), ri(ri_)
@@ -44,24 +47,20 @@ class TTTree    //indexes must be different, 相同元素的查找尚未解决
 {
 private:
 	Node<T>* root;  //if key==root, k belong to left tree. 
-	int height;  //height==-1 means unknown ;
 	void deepcpy(Node<T>*& to, Node<T>* from);
 	void clear(Node<T>* root);
-	void adjust(Node<T>* cur);
+	void insert_adjust(Node<T>* cur);
 public:
 	TTTree();
 	TTTree(Node<T>* root);
 	~TTTree();
 	Node<T>* get_root() { return root; }
-	int get_height();
 	Node<T>* search(T k);
 	Node<T>* maximum(Node<T>* ro);//以ro作为根节点向下查找最值
 	Node<T>* minimum(Node<T>* ro);
-	Node<T>* predecessor(Node<T>* k);
-	Node<T>* successor(Node<T>* k);
-	bool delete_index(T k);
+	bool delete_index(T k);       //未完待续
 	bool insert(T k);
-	void inorder_walk();//中序遍历
+	void inorder_walk(Node<T>* root);//中序遍历
 	void see();//层序遍历
 };
 
@@ -88,7 +87,7 @@ inline void TTTree<T>::clear(Node<T>* root)
 }
 
 template<typename T>
-inline void TTTree<T>::adjust(Node<T>* cur)
+inline void TTTree<T>::insert_adjust(Node<T>* cur)
 {    
 	if (cur->p == nullptr)
 	{
@@ -97,16 +96,19 @@ inline void TTTree<T>::adjust(Node<T>* cur)
 		T right = cur->key[2];
 		Node<T>* l = cur->le;
 		Node<T>* r = cur->ri;
-		Node<T>* m = cur->mi;
-		delete cur;
 		Node<T>* top = new Node<T>(false, middle);
-		Node<T>* lef = new Node<T>(false, left, 0, top,l,nullptr,m);
-		Node<T>* rig = new Node<T>(false, right, 0, top, nullptr, nullptr, r);
+		Node<T>* lef = new Node<T>(false, left, 0, top,l,nullptr,cur->ml);
+		Node<T>* rig = new Node<T>(false, right, 0, top, cur->mr, nullptr, r);
 		top->le = lef;
 		top->ri = rig;
-		l->p = lef;
-		m->p = lef;
-		r->p = rig;
+		if(l!=nullptr)
+			l->p = lef;
+		if (cur->ml != nullptr)
+			cur->ml->p = lef;
+		if (cur->mr != nullptr)
+			cur->mr->p = rig;
+		if(r!=nullptr)
+			r->p = rig;
 		root = top;
 		return;
 	}
@@ -114,13 +116,68 @@ inline void TTTree<T>::adjust(Node<T>* cur)
 	if (cur->p->type == false)//更改父节点为三节点 
 	{
 		Node<T>* tem = cur->p;
-		tem->key[1] = tem->key[0];
-		tem->key[0] = cur->key[2];
+		if (tem->le == cur)//左支
+		{
+			tem->key[1] = tem->key[0];
+			tem->key[0] = cur->key[1];
+			tem->type = true;
+			//分配新的子节点
+			Node<T>* newmid = new Node<T>(false, cur->key[2], 0, tem, cur->mr, nullptr, cur->ri);
+			cur->type = false;
+			cur->ri = cur->ml;
+			tem->mi = newmid;
+		}
+		else//右支
+		{
+			tem->key[1] = cur->key[1];
+			tem->type = true;
+			//分配新的子节点
+			Node<T>* newmid = new Node<T>(false, cur->key[0], 0, tem, cur->le, nullptr, cur->ml);
+			cur->type = false;
+			cur->key[0] = cur->key[2];
+			cur->le = cur->mr;
+			tem->mi = newmid;
+		}
+		return;
 	}
 
 	else//将父节点变成四节点，递归 
 	{
-
+		Node<T>* tem = cur->p;
+		if (tem->le == cur)
+		{
+			tem->key[2] = tem->key[1];
+			tem->key[1] = tem->key[0];
+			tem->key[0] = cur->key[1];
+			//分配新的子节点
+			Node<T>* newmid = new Node<T>(false, cur->key[2], 0, tem, cur->mr, nullptr, cur->ri);
+			tem->mr = tem->mi;
+			tem->ml = newmid;
+			cur->ri = cur->ml;
+			cur->type = false;
+		}
+		else if (tem->mi == cur)
+		{
+			tem->key[2] = tem->key[1];
+			tem->key[1] = cur->key[1];
+			//分配新的子节点
+			Node<T>* newmid1 = new Node<T>(false, cur->key[0], 0, tem, cur->le, nullptr, cur->ml);
+			Node<T>* newmid2 = new Node<T>(false, cur->key[2], 0, tem, cur->mr, nullptr, cur->ri);
+			tem->ml = newmid1;
+			tem->mr = newmid2;
+		}
+		else if (tem->ri == cur)
+		{
+			tem->key[2] = cur->key[1];
+			//分配新的子节点
+			Node<T>* newmid = new Node<T>(false, cur->key[0], 0, tem, cur->le, nullptr, cur->ml);
+			tem->mr = newmid;
+			tem->ml = tem->mi;
+			cur->le = cur->mr;
+			cur->key[0] = cur->key[2];
+			cur->type = false;
+		}
+		insert_adjust(tem);
 	}
 }
 
@@ -128,13 +185,11 @@ template<typename T>
 inline TTTree<T>::TTTree()
 {
 	root = nullptr;
-	height = -1;
 }
 
 template<typename T>
 inline TTTree<T>::TTTree(Node<T>* r)
 {
-	height = -1;
 	deepcpy(root, r);
 	root->p = nullptr;
 }
@@ -244,6 +299,7 @@ inline bool TTTree<T>::insert(T k)
 			tem->key[1] = tem->key[0];
 			tem->key[0] = k;
 		}
+		tem->type = true;
 		return true;
 	}
 	else   //（四节点）
@@ -262,8 +318,66 @@ inline bool TTTree<T>::insert(T k)
 			tem->key[1] = k;
 		}
 		//调整
-		adjust(tem);
+		tem->ml = nullptr;
+		tem->mr = nullptr;
+		insert_adjust(tem);
 		return true;
+	}
+}
+template<typename T>
+inline void TTTree<T>::inorder_walk(Node<T>* root)
+{
+	if (root == nullptr)
+		return;
+	if (root->type == true)
+	{
+		inorder_walk(root->le);
+		cout << root->key[0] << ' ';
+		inorder_walk(root->mi);
+		cout << root->key[1] << ' ';
+		inorder_walk(root->ri);
+	}
+	else
+	{
+		inorder_walk(root->le);
+		root->seenode();
+		cout << "   ";
+		inorder_walk(root->ri);
+	}
+}
+
+template<typename T>
+inline void TTTree<T>::see()
+{
+	if (root == nullptr)
+		return;
+	queue<Node<T>*> walk;
+	walk.push(root);
+	walk.push(nullptr);  //means \n
+	while (!walk.empty())
+	{
+		while (walk.front() != nullptr)
+		{
+			Node<T>* tem = walk.front();
+			if (tem->type == true&&tem->le!=nullptr)
+			{
+				walk.push(tem->le);
+				walk.push(tem->mi);
+				walk.push(tem->ri);
+			}
+			else if(tem->type == false && tem->le != nullptr)
+			{
+				walk.push(tem->le);
+				walk.push(tem->ri);
+			}
+			tem->seenode();
+			cout << "   ";
+			walk.pop();
+		}
+		cout << '\n';
+		walk.pop();
+		if (!walk.empty())
+			walk.push(nullptr);
 	}
 }
 

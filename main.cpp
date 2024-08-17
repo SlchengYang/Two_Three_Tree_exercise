@@ -3,10 +3,15 @@
 using namespace std;
 int main()
 {
-	Node<int> a(true, 1, 2);
-	int arr[2] = { 4,5 };
-	Node<int> b(false, arr);
-	a.seenode();
-	cout << endl;
-	b.seenode();
+	int n;
+	cin >> n;
+	TTTree<int> tree;
+	while (n--)
+	{
+		int tem;
+		cin >> tem;
+		tree.insert(tem);
+	}
+	tree.see();
+	tree.inorder_walk(tree.get_root());
 }
